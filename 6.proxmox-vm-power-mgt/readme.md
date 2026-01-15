@@ -7,9 +7,13 @@ In case of power outage. it will shutdown all the vm if battary is below 60%.
 # add cron
 */5 * * * * /opt/cron/vm_power_mgt.sh
 
-#
+# Hp laptop
 cat /sys/class/power_supply/ACAD/online
 cat /sys/class/power_supply/BAT1/capacity
+
+# Lenovo laptop
+cat /sys/class/power_supply/ADP0/online
+cat /sys/class/power_supply/BAT0/capacity
 ```
 
 
