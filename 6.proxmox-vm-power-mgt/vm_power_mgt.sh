@@ -24,12 +24,14 @@ get_battery_level() {
 
 shutdown_all_vms() {
     log "Shutting down all running VMs..."
-    qm list | awk '/running/ {print $1}' > /var/log/running_vm_list.txt #it make sure script does not affect other vms
-    running_vm_list=$(cat /var/log/running_vm_list.txt)
-    for vmid in $running_vm_list; do
-        log "Shutting down VM ID $vmid"
-        qm shutdown "$vmid"
-    done
+    if [[ $(qm list | awk '/running/ {print $1}') != "" ]]; then #make sure not empty /var/log/running_vm_list.txt file
+        qm list | awk '/running/ {print $1}' > /var/log/running_vm_list.txt #it make sure script does not affect other vms
+        running_vm_list=$(cat /var/log/running_vm_list.txt)
+        for vmid in $running_vm_list; do
+            log "Shutting down VM ID $vmid"
+            qm shutdown "$vmid"
+        done
+    fi
 }
 
 start_all_vms() {
