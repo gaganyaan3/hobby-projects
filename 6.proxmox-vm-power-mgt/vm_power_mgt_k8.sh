@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # CONFIG
-BATTERY_THRESHOLD=40      # percent
+BATTERY_THRESHOLD=95     # percent
 LOG_FILE="/var/log/vm_power_status.log"
 
 log() {
@@ -18,7 +18,7 @@ is_charging() {
     fi
 }
 
-# Returns battery percentage
+# Returns battery percentage as integer
 get_battery_level() {
     if [ -f /sys/class/power_supply/BAT0/capacity ]; then
         cat /sys/class/power_supply/BAT0/capacity #check the file first then add here
@@ -28,12 +28,19 @@ get_battery_level() {
 }
 
 shutdown_all_process() {
-    log "Shutting down all running VMs..."
-    systemctl stop ollama
-    systemctl stop kubelet
-    crictl rm -af
-    docker compose -f /root/docker/openweb-compose.yml down
-    touch /var/log/running_container_list.txt
+    if [[ $(cat /var/log/running_container_list.txt | wc -l) -eq 0 ]]; then
+        log "Shutting down all running VMs..."
+        systemctl stop ollama
+        systemctl stop kubelet
+        crictl rm -af
+        docker compose -f /root/docker/openweb-compose.yml down
+        touch /var/log/running_container_list.txt
+        echo "line append" >> /var/log/running_container_list.txt
+    else
+        log "All Services has been shutdown..."
+    fi
+
+
 }
 
 start_all_process() {
@@ -57,9 +64,11 @@ if [[ $charging -eq 0 ]]; then
         shutdown_all_process
     fi
 else
-    if [[ -f /var/log/running_container_list.txt ]]; then
-        start_all_process
-        rm -rf /var/log/running_container_list.txt
+    if [[ $battery -gt $BATTERY_THRESHOLD ]]; then
+        if [[ -f /var/log/running_container_list.txt ]]; then
+            start_all_process
+            rm -rf /var/log/running_container_list.txt
+        fi
     fi
 fi
 echo "battery charging: $(cat /sys/class/power_supply/ADP0/online)"
