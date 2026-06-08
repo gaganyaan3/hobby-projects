@@ -23,7 +23,6 @@ unsigned long lastWifiCheck = 0;
 
 const unsigned long sampleInterval = 2000;      // 2 sec
 const unsigned long pushInterval = 30000;       // 30 sec
-const unsigned long wifiCheckInterval = 10000;  // 10 sec
 
 // Reconnect if signal weaker than this
 const int minAcceptableRSSI = -82;
@@ -32,7 +31,7 @@ float sumRain = 0;
 float minRain = 0;
 float maxRain = 0;
 int sampleCount = 0;
-float lastSentAvgVoltage = -1;
+float lastSentAvgRain = -1;
 
 void connectWiFi() {
   Serial.println();
@@ -44,8 +43,8 @@ void connectWiFi() {
 
   int retries = 0;
 
-  while (WiFi.status() != WL_CONNECTED && retries < 20) {
-    delay(500);
+  while (WiFi.status() != WL_CONNECTED && retries < 10) {
+    delay(1000);
     Serial.print(".");
     retries++;
   }
@@ -79,6 +78,7 @@ void checkWiFiHealth() {
   Serial.print("[WIFI] RSSI: ");
   Serial.print(rssi);
   Serial.println(" dBm");
+  delay(2000);
 
   if (rssi < minAcceptableRSSI) {
     Serial.println("[WIFI] Weak signal detected. Reconnecting...");
@@ -102,10 +102,7 @@ void loop() {
   unsigned long now = millis();
 
   // WIFI HEALTH CHECK
-  if (now - lastWifiCheck >= wifiCheckInterval) {
-    lastWifiCheck = now;
-    checkWiFiHealth();
-  }
+  checkWiFiHealth();
 
   // SAMPLE SENSOR
   if (now - lastSampleTime >= sampleInterval) {
@@ -128,28 +125,21 @@ void loop() {
     lastPushTime = now;
 
     float avgRain = sumRain / sampleCount;
-    float diff = abs(avgRain - lastSentAvgVoltage);
+    float diff = abs(avgRain - lastSentAvgRain);
 
-    if (lastSentAvgVoltage < 0 || diff >= 2) {
+    String payload = "";
+    payload += "rain_sensor_avg " + String(avgRain, 2) + "\n";
+    payload += "rain_sensor_min " + String(minRain, 2) + "\n";
+    payload += "rain_sensor_max " + String(maxRain, 2) + "\n";
 
-      String payload = "";
-      payload += "rain_sensor_avg " + String(avgRain, 2) + "\n";
-      payload += "rain_sensor_min " + String(minRain, 2) + "\n";
-      payload += "rain_sensor_max " + String(maxRain, 2) + "\n";
-      payload += "wifi_rssi " + String(WiFi.RSSI()) + "\n";
-
-      sendToPushGateway(payload);
-
-      // Reset stats
-      lastSentAvgVoltage = avgRain;
-      sumRain = 0;
-      sampleCount = 0;
-      minRain = 0;
-      maxRain = 0;
-
-    } else {
-      Serial.println("[INFO] No significant voltage change. Skipping push.");
-    }
+    sendToPushGateway(payload);
+    
+    // Reset stats
+    lastSentAvgRain = avgRain;
+    sumRain = 0;
+    sampleCount = 0;
+    minRain = 0;
+    maxRain = 0;
   }
 }
 
